@@ -1,0 +1,77 @@
+data:
+  container_name: pirateship_data
+  image: busybox
+  volumes: 
+    - /data/config:/config
+    - /downloads:/downloads
+    - /mnt/tank/media:/media
+    - /mnt/tank/media/tv:/tv
+    - /mnt/tank/media/movies:/movies
+    - /mnt/tank/media/ufc:/ufc
+    - /mnt/tank/media/music:/music
+    - /etc/localtime:/etc/localtime:ro
+  command: /bin/true
+nzbget: 
+  container_name: pirateship_nzbget
+  image: linuxserver/nzbget
+  volumes: 
+    - /data/pirateship_nzbget/config:/config
+  volumes_from: ["data"]
+  restart: always
+  ports: 
+    - "6789:6789"
+sonarr: 
+  container_name: pirateship_sonarr
+  image: linuxserver/sonarr
+  external_links: 
+    - pirateship_nzbget:nzbget
+    - pirateship_transmission:transmission
+  environment: 
+    - PUID=1001
+    - PGID=1100
+  volumes: 
+    - /data/pirateship_sonarr/config:/config
+  volumes_from: ["data"]
+  restart: always
+  ports: 
+    - "8989:8989"
+headphones: 
+  container_name: pirateship_headphones
+  image: linuxserver/headphones
+  external_links: 
+    - pirateship_nzbget:nzbget
+  environment: 
+    - PUID=1001
+    - PGID=1100
+  volumes: 
+    - /data/pirateship_headphones/config:/config
+  volumes_from: ["data"]
+  restart: always
+  ports: 
+    - "8181:8181"
+transmission:
+  container_name: pirateship_transmission
+  image: cptactionhank/transmission
+  restart: always
+  volumes:
+    - /data/pirateship_transmission/config:/var/lib/transmission-daemon
+  volumes_from: ["data"]
+  ports:
+    - "9091:9091"
+    - "51413:51413"
+couchpotato:
+  container_name: pirateship_couchpotato
+  image: linuxserver/couchpotato
+  external_links:
+    - pirateship_nzbget:nzbget
+    - pirateship_transmission:transmission
+  environment:
+    - PUID=1001
+    - PGID=1100
+  volumes:
+    - /data/pirateship_couchpotato/config:/config
+  volumes_from: ["data"]
+  restart: always
+  ports:
+    - "5050:5050"
+  mem_limit: 1500M

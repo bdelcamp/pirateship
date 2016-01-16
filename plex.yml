@@ -1,0 +1,28 @@
+plex:
+  container_name: pirateship_plex
+  image: linuxserver/plex
+  net: host
+  restart: always
+  volumes: 
+    - /data/pirateship_plex/config:/config
+  volumes_from: ["pirateship_data"]
+  environment: 
+    - PUID=1001
+    - PGID=1100
+    - VERSION=0.9.15.1.1639-26325ea
+  ports:
+    - "32400:32400"
+plexpy:
+  container_name: pirateship_plexpy
+  image: linuxserver/plexpy
+  restart: always
+  volumes:
+    - /data/pirateship_plexpy/config:/config
+    - /data/pirateship_plexpy/logs:/logs
+    - "/data/pirateship_plex/config/Library/Application Support/Plex Media Server/Logs:/plex_logs"
+  environment:
+    - PUID=1001
+    - PGID=1100
+  ports:
+    - "8111:8181"
+
