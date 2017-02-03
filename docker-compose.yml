@@ -1,105 +1,155 @@
-data:
-  container_name: pirateship_data
-  image: busybox
-  volumes: 
-    - /data/config:/config
-    - /downloads:/downloads
-    - /mnt/tank/media:/media
-    - /mnt/tank/media/tv:/tv
-    - /mnt/tank/media/movies:/movies
-    - /mnt/tank/media/ufc:/ufc
-    - /mnt/tank/media/music:/music
-    - /etc/localtime:/etc/localtime:ro
-  command: /bin/true
-nzbget: 
-  container_name: pirateship_nzbget
-  image: linuxserver/nzbget
-  volumes: 
-    - /data/pirateship_nzbget/config:/config
-  volumes_from: ["data"]
-  restart: always
-  ports: 
-    - "6789:6789"
-sonarr: 
-  container_name: pirateship_sonarr
-  image: linuxserver/sonarr
-  external_links: 
-    - pirateship_nzbget:nzbget
-    - pirateship_transmission:transmission
-  environment: 
-    - PUID=1001
-    - PGID=1100
-  volumes: 
-    - /data/pirateship_sonarr/config:/config
-  volumes_from: ["data"]
-  restart: always
-  ports: 
-    - "8989:8989"
-headphones: 
-  container_name: pirateship_headphones
-  image: linuxserver/headphones
-  external_links: 
-    - pirateship_nzbget:nzbget
-  environment: 
-    - PUID=1001
-    - PGID=1100
-  volumes: 
-    - /data/pirateship_headphones/config:/config
-  volumes_from: ["data"]
-  restart: always
-  ports: 
-    - "8181:8181"
-transmission:
-  container_name: pirateship_transmission
-  image: cptactionhank/transmission
-  restart: always
-  volumes:
-    - /data/pirateship_transmission/config:/var/lib/transmission-daemon
-  volumes_from: ["data"]
-  ports:
-    - "9091:9091"
-    - "51413:51413"
-couchpotato:
-  container_name: pirateship_couchpotato
-  image: linuxserver/couchpotato
-  external_links:
-    - pirateship_nzbget:nzbget
-    - pirateship_transmission:transmission
-  environment:
-    - PUID=1001
-    - PGID=1100
-  volumes:
-    - /data/pirateship_couchpotato/config:/config
-  volumes_from: ["data"]
-  restart: always
-  ports:
-    - "5050:5050"
-  mem_limit: 1500M
-plex:
-  container_name: pirateship_plex
-  image: linuxserver/plex
-  net: host
-  restart: always
-  volumes:
-    - /data/pirateship_plex/config:/config
-  volumes_from: ["pirateship_data"]
-  environment:
-    - PUID=1001
-    - PGID=1100
-    - VERSION=0.9.15.1.1639-26325ea
-  ports:
-    - "32400:32400"
-plexpy:
-  container_name: pirateship_plexpy
-  image: linuxserver/plexpy
-  restart: always
-  volumes:
-    - /data/pirateship_plexpy/config:/config
-    - /data/pirateship_plexpy/logs:/logs
-    - "/data/pirateship_plex/config/Library/Application Support/Plex Media Server/Logs:/plex_logs"
-  environment:
-    - PUID=1001
-    - PGID=1100
-  ports:
-    - "8111:8181"
-
+version: '2'
+services:
+  data:
+    container_name: pirateship_data
+    image: busybox
+    volumes:
+      - /downloads:/downloads_root
+      - /mnt/tank/media:/media
+      - /mnt/tank/media/tv:/tv
+      - /mnt/tank/media/movies:/movies
+      - /mnt/tank/media/ufc:/ufc
+      - /mnt/tank/media/music:/music
+      - /mnt/tank/media/homevideos:/homevideos
+    command: /bin/true
+  nzbget:
+    container_name: pirateship_nzbget
+    image: linuxserver/nzbget
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - /data/pirateship_nzbget/config:/config
+      - /downloads/usenet:/downloads
+    volumes_from: ["data"]
+    restart: always
+    ports:
+      - "6789:6789"
+  transmission:
+      container_name: pirateship_transmission
+      image: linuxserver/transmission
+      volumes:
+        - /downloads/torrents:/downloads
+        - /data/pirateship_transmission/config:/config
+      volumes_from: ["data"]
+      ports:
+        - "9091:9091"
+        - "51413:51413"
+      environment:
+        - PUID=${PUID}
+        - PGID=${PGID}
+      restart: always
+  sonarr:
+    container_name: pirateship_sonarr
+    image: linuxserver/sonarr
+    volumes:
+      - /data/pirateship_sonarr/config:/config
+      - /exports/process/tv:/factory
+    volumes_from:
+      - data
+      - nzbget
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    restart: always
+    ports:
+      - "8989:8989"
+    depends_on:
+      - nzbget
+      - transmission
+  radarr:
+    container_name: pirateship_radarr
+    image: linuxserver/radarr
+    volumes:
+      - /data/pirateship_radarr/config:/config
+      - /exports/process/movies:/factory
+    volumes_from:
+      - data
+      - nzbget
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    restart: always
+    ports:
+      - "7878:7878"
+    depends_on:
+      - nzbget
+      - transmission
+  headphones:
+    container_name: pirateship_headphones
+    image: linuxserver/headphones
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - /data/pirateship_headphones/config:/config
+    volumes_from:
+      - data
+      - nzbget
+    restart: always
+    ports:
+      - "8181:8181"
+    depends_on:
+      - nzbget
+      - transmission
+  couchpotato:
+    container_name: pirateship_couchpotato
+    image: linuxserver/couchpotato
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    volumes:
+      - /data/pirateship_couchpotato/config:/config
+      - /exports/process/movies:/process
+    volumes_from:
+      - data
+      - nzbget
+    restart: always
+    ports:
+      - "5050:5050"
+    mem_limit: 1500M
+    depends_on:
+      - nzbget
+      - transmission
+  plex:
+    container_name: pirateship_plex
+    image: linuxserver/plex
+    network_mode: host
+    restart: always
+    volumes:
+      - /data/pirateship_plex/config:/config
+    volumes_from: ["data"]
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - VERSION=latest
+    ports:
+      - "32400:32400"
+      - "33400:33400"
+  plexpy:
+    container_name: pirateship_plexpy
+    image: linuxserver/plexpy
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+    restart: always
+    volumes_from: ["data"]
+    volumes:
+      - /data/pirateship_plexpy/config:/config
+      - /data/pirateship_plexpy/logs:/logs
+      - "/data/pirateship_plex/config/Library/Application Support/Plex Media Server/Logs:/plex_logs"
+    ports:
+      - "8111:8181"
+  plexrequests:
+    container_name: pirateship_plexrequests
+    image: lsiodev/ombi
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - URL_BASE=/requests
+    restart: always
+    volumes:
+      - /data/pirateship_plexrequests/config:/config
+    volumes_from: ["data"]
+    ports:
+      - "3100:3579"
